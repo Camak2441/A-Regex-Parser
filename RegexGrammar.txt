@@ -1,0 +1,44 @@
+Precedence designed to match typical regex precedence:
+Star
+Concat
+Alternative
+
+REGEX = ALTERNATE;
+ALTERNATE = CONCAT, "|", ALTERNATE | CONCAT;
+CONCAT = STAR, CONCAT | STAR;
+STAR = CHAR, "*" | CHAR;
+
+CHAR = "(", REGEX, ")" | { char } | "[", RANGE, "]";
+RANGE = { char } | { char }, "-", { char } | RANGE, RANGE;
+
+Alterations:
+CHAR was split into SINGLE and BRACKET for the sake of matching: the new rules ensured that terms which only match one character are distinct from terms which can match multiple.
+REGEX was expanded to include all possible initial state, not just ALTERNATE. This was done to ease the combination rules, allowing regexes to bypass the ALTERNATE stage to a lower stage.
+Range was made properly associative by converting the combining state into two states, one for combining on a single, and one for combining on a range.
+Range was made with left associativity in opposition to the rest of the system which is right associative. This was done to make the parsing of ranges easier.
+Regex had the additional regexes of epsilon and null added, representing the regex matching the empty string, and the regex matching nothing respectively.
+The parser allows for empty strings at the CONCAT state to represent the null regex. This allows for multiple pipes to be placed next to each other without affecting the regex, which may be useful for matching certain programming forms (particularly the pipes commonly found at the start of patterns).
+
+This gives the final EBNF form as:
+REGEX = ALTERNATE | CONCAT | STAR | BRACKET | SINGLE | EPSILON | NULL;
+ALTERNATE = CONCAT, "|", ALTERNATE | CONCAT;
+CONCAT = STAR, CONCAT | STAR | "";
+STAR = BRACKET, "*" | BRACKET;
+BRACKET = "(", REGEX, ")" | SINGLE;
+SINGLE = { char } | "[", RANGE, "]";
+RANGE = { char } | { char }, "-", { char } | RANGE, { char } | RANGE, { char }, "-", { char };
+
+Having read the question properly, we define a new grammar. We could choose the same grammatical form (the key point being the right associativity of ALTERNATE and CONCAT) but in the interest of facing some of the challenges of recursive descent parsers we decide to use a left associative grammar.
+
+A  = C, A';
+A' = "|" C A' | "";
+C  = K, C';
+C' = K, C' | "";
+K  = B, "*" | B;
+B  = "(", A, ")" | S;
+S  = { char } | "[", L, "]"
+L  = R, L';
+L' = R, L' | "";
+R  = { char } | { char }, "-", { char };
+
+The grammar remained completely intact between the implementation and the planning.
